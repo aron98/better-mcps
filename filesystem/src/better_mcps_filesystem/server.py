@@ -6,7 +6,7 @@ from pathlib import Path
 
 from fastmcp import FastMCP
 
-mcp = FastMCP("Better Filesystem MCP")
+mcp: FastMCP = FastMCP("better-mcps-filesystem")
 
 # Configured at runtime (in main) from CLI args.
 _ALLOWED_ROOTS: list[Path] = []

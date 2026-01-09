@@ -1,0 +1,34 @@
+name: Select modules
+description: "Select changed MCP modules based on git diff and release-please-manifest.json"
+
+inputs:
+  manifest:
+    description: "Path to release-please-manifest.json"
+    required: true
+    default: "release-please-manifest.json"
+  base_sha:
+    description: "Base git sha to diff from"
+    required: true
+  head_sha:
+    description: "Head git sha to diff to"
+    required: true
+
+outputs:
+  modules_json:
+    description: "JSON array of selected modules"
+    value: ${{ steps.select.outputs.modules_json }}
+
+runs:
+  using: "composite"
+  steps:
+    - id: select
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        modules_json=$(python "${{ github.action_path }}/select_modules.py" \
+          --manifest "${{ inputs.manifest }}" \
+          --base "${{ inputs.base_sha }}" \
+          --head "${{ inputs.head_sha }}")
+
+        echo "modules_json=${modules_json}" >> "$GITHUB_OUTPUT"

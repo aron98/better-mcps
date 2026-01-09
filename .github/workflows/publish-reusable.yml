@@ -7,10 +7,6 @@ on:
         description: "Path to the MCP package directory (e.g., filesystem)"
         required: true
         type: string
-      dist_name:
-        description: "PyPI distribution name (e.g., better-mcps-filesystem)"
-        required: true
-        type: string
 
 permissions:
   contents: read

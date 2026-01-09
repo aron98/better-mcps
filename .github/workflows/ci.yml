@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  pull_request:
+
+jobs:
+  select-modules:
+    runs-on: ubuntu-latest
+    outputs:
+      modules_json: ${{ steps.pick.outputs.modules_json }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Pick modules
+        id: pick
+        uses: ./.github/actions/select-modules
+        with:
+          manifest: release-please-manifest.json
+          base_sha: ${{ github.event.pull_request.base.sha }}
+          head_sha: ${{ github.event.pull_request.head.sha }}
+
+      - name: Summary
+        run: |
+          echo "Selected modules: ${{ steps.pick.outputs.modules_json }}" >> "$GITHUB_STEP_SUMMARY"
+
+  ci:
+    needs: select-modules
+    # Always run so branch protection has a stable check name.
+    uses: ./.github/workflows/ci-reusable.yml
+    with:
+      modules_json: ${{ needs.select-modules.outputs.modules_json }}

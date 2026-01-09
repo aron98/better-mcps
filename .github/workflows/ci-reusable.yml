@@ -3,17 +3,34 @@ name: CI (reusable)
 on:
   workflow_call:
     inputs:
-      package:
-        description: "Path to the MCP package directory (e.g., filesystem)"
+      modules_json:
+        description: "JSON array of module directories to run (e.g. [\"filesystem\"])"
         required: true
         type: string
 
 jobs:
-  lint-typecheck-test:
+  # Ensure this workflow always produces a successful check run even when there
+  # are no selected modules (e.g. a docs-only PR).
+  noop:
+    if: ${{ inputs.modules_json == '[]' }}
     runs-on: ubuntu-latest
+    steps:
+      - name: No-op
+        run: echo "No modules selected; skipping CI."
+
+  ci:
+    if: ${{ inputs.modules_json != '[]' }}
+    name: ci (${{ matrix.module }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJSON(inputs.modules_json) }}
+
     defaults:
       run:
-        working-directory: ${{ inputs.package }}
+        working-directory: ${{ matrix.module }}
 
     steps:
       - uses: actions/checkout@v4
