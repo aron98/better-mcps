@@ -35,7 +35,7 @@ def _is_under_any_module(path: str, modules: list[str]) -> bool:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--manifest", default="release-please-manifest.json")
+    parser.add_argument("--manifest", default=".release-please-manifest.json")
     parser.add_argument("--base", required=True)
     parser.add_argument("--head", required=True)
 

@@ -22,7 +22,7 @@ jobs:
         id: pick
         uses: ./.github/actions/select-modules
         with:
-          manifest: release-please-manifest.json
+          manifest: .release-please-manifest.json
           base_sha: ${{ github.event.pull_request.base.sha }}
           head_sha: ${{ github.event.pull_request.head.sha }}
 
