@@ -7,6 +7,11 @@ on:
         description: "JSON array of module directories to run (e.g. [\"filesystem\"])"
         required: true
         type: string
+      ref:
+        description: "Git ref to checkout (e.g. refs/tags/better-mcps-filesystem-v0.1.1). Empty means default for the run."
+        required: false
+        type: string
+        default: ""
 
 jobs:
   # Ensure this workflow always produces a successful check run even when there
@@ -34,6 +39,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        if: ${{ inputs.ref == '' }}
+
+      - uses: actions/checkout@v4
+        if: ${{ inputs.ref != '' }}
+        with:
+          ref: ${{ inputs.ref }}
 
       - uses: actions/setup-python@v5
         with:

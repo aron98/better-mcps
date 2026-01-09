@@ -3,16 +3,25 @@ name: Publish to PyPI (filesystem)
 on:
   push:
     tags:
-      - "filesystem-v*"
+      - "better-mcps-filesystem-v*"
 
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to publish (e.g. refs/tags/better-mcps-filesystem-v0.1.1). Leave empty to use the workflow run ref."
+        required: false
+        type: string
 jobs:
   ci:
     uses: ./.github/workflows/ci-reusable.yml
     with:
       modules_json: '["filesystem"]'
+      ref: ${{ github.event.inputs.ref || '' }}
 
   publish:
+    environment: pypi
     needs: ci
     uses: ./.github/workflows/publish-reusable.yml
     with:
       package: filesystem
+      ref: ${{ github.event.inputs.ref || '' }}
