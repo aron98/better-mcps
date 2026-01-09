@@ -37,6 +37,55 @@ python -m filesystem /absolute/allowed/root1 /absolute/allowed/root2
 }
 ```
 
+## Docker example
+
+When running this MCP in Docker, the server can only access paths *inside the container*.
+So you must **mount** any directories you want this MCP to be able to access (read/list today; edit/write if you add write tools later).
+
+### Build
+
+From the repo root:
+
+```bash
+docker build -t better-mcps:latest .
+```
+
+### Run
+
+Mount the host directories into the container and pass the *container paths* as allowed roots.
+
+```bash
+docker run --rm -i \
+  -v "/Users/erdelyia/Projects/project:/roots/project:rw" \
+  -v "/Users/erdelyia/Projects/project2:/roots/project2:rw" \
+  better-mcps:latest \
+  /roots/project /roots/project2
+```
+
+Notes:
+- `-i` keeps STDIN open (needed for MCP over stdio).
+- Use `:rw` if you expect the MCP to modify files; use `:ro` to force read-only.
+
+## VS Code example
+
+VS Code supports variable substitution for the current workspace folder (your *workdir*).
+You can use that as the allowed root so the MCP is automatically scoped to the open workspace.
+
+Example (conceptually):
+
+```json
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "filesystem",
+      "args": ["${workspaceFolder}"]
+    }
+  }
+}
+```
+
+If you use a multi-root workspace, VS Code can target a specific folder (e.g. `${workspaceFolder:my-folder}`).
+
 ## API
 
 ### Tools
