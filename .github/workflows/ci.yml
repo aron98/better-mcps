@@ -18,6 +18,11 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
       - name: Pick modules
         id: pick
         uses: ./.github/actions/select-modules
@@ -35,15 +40,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      # Checkout `main` into a separate directory so local composite actions are always available,
+      # even if this PR's HEAD commit does not include them.
+      - name: Checkout actions (main)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: actions
+
+      # Checkout the PR code under test.
+      - name: Checkout PR code
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          path: repo
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Compute module paths
+        id: module_paths
+        run: |
+          set -euo pipefail
+          modules_json='${{ needs.select-modules.outputs.modules_json }}'
+          echo "modules_json=$modules_json" >> "$GITHUB_STEP_SUMMARY"
+          modules_paths_json=$(printf '%s' "$modules_json" | jq -c 'map("repo/" + .)')
+          echo "modules_paths_json=$modules_paths_json" >> "$GITHUB_OUTPUT"
+          echo "modules_paths_json=$modules_paths_json" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Run module CI
-        uses: aron98/better-mcps/.github/actions/python-ci-multi@main
+        uses: ./actions/.github/actions/python-ci-multi
         with:
-          modules_json: ${{ needs.select-modules.outputs.modules_json }}
+          modules_json: ${{ steps.module_paths.outputs.modules_paths_json }}

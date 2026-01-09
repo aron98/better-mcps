@@ -22,10 +22,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      # Checkout `main` into a separate directory so local composite actions are always available,
+      # even when publishing an older tag that predates them.
+      - name: Checkout actions (main)
+        uses: actions/checkout@v4
         with:
-          # On manual runs, allow publishing a specific tag/sha.
+          ref: main
+          path: actions
+
+      # Checkout the code to publish (tag/sha) into its own directory.
+      - name: Checkout release ref
+        uses: actions/checkout@v4
+        with:
           ref: ${{ github.event.inputs.ref || github.ref }}
+          path: repo
 
       - uses: actions/setup-python@v5
         with:
@@ -36,14 +46,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq
 
-      - uses: aron98/better-mcps/.github/actions/python-ci-multi@main
+      - uses: ./actions/.github/actions/python-ci-multi
         with:
-          modules_json: '["filesystem"]'
+          modules_json: '["repo/filesystem"]'
 
-      - uses: aron98/better-mcps/.github/actions/python-build@main
+      - uses: ./actions/.github/actions/python-build
         with:
-          module: filesystem
+          module: repo/filesystem
 
-      - uses: aron98/better-mcps/.github/actions/pypi-publish@main
+      - uses: ./actions/.github/actions/pypi-publish
         with:
-          dist_dir: filesystem/dist
+          dist_dir: repo/filesystem/dist
