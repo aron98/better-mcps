@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from stat import filemode
+from typing import Literal
 
 from fastmcp import FastMCP
 
@@ -47,8 +49,23 @@ def _resolve_allowed_abs_path(user_path: str) -> Path:
 
 
 @mcp.tool
-def list_dir(path: str) -> list[str]:
-    """List directory entries for an absolute directory path under an allowed root."""
+def list_dir(
+    path: str,
+    max: int = 200,
+    format: Literal["text", "json"] = "text",
+    detailed: bool = False,
+) -> str | dict:
+    """List directory entries for an absolute directory path under an allowed root.
+
+    Defaults are intentionally conservative to avoid dumping extremely large
+    directory listings into context.
+
+    Args:
+        path: Absolute directory path to list.
+        max: Maximum number of entries to return. Clamped to 2000 server-side.
+        format: "text" (default) or "json".
+        detailed: If true, include permissions and size.
+    """
 
     p = _resolve_allowed_abs_path(path)
     if not p.exists():
@@ -56,7 +73,82 @@ def list_dir(path: str) -> list[str]:
     if not p.is_dir():
         raise NotADirectoryError(str(p))
 
-    return sorted([child.name for child in p.iterdir()])
+    return _list_dir_impl(p, max=max, format=format, detailed=detailed)
+
+
+def _list_dir_impl(
+    directory: Path,
+    *,
+    max: int = 200,
+    format: Literal["text", "json"] = "text",
+    detailed: bool = False,
+) -> str | dict:
+    """Implementation for list_dir.
+
+    This is separated from the FastMCP tool wrapper so it can be unit tested.
+    """
+
+    if not directory.exists():
+        raise FileNotFoundError(str(directory))
+    if not directory.is_dir():
+        raise NotADirectoryError(str(directory))
+
+    max_allowed = 2000
+    try:
+        max_n = int(max)
+    except Exception as e:
+        raise ValueError("max must be an integer") from e
+    if max_n < 0:
+        raise ValueError("max must be >= 0")
+    max_n = min(max_n, max_allowed)
+
+    # Collect entries (including dotfiles), sort by name.
+    entries: list[tuple[str, int, int]] = []
+    for child in directory.iterdir():
+        try:
+            st = child.lstat()
+        except FileNotFoundError:
+            # Entry disappeared between iterdir and stat.
+            continue
+        entries.append((child.name, st.st_mode, st.st_size))
+
+    entries.sort(key=lambda t: t[0])
+    total = len(entries)
+    shown = entries[:max_n]
+    truncated = total > len(shown)
+
+    if format == "text":
+        if detailed:
+            lines = [f"{filemode(mode)} {size} {name}" for name, mode, size in shown]
+        else:
+            lines = [name for name, _mode, _size in shown]
+
+        if truncated:
+            lines.append(
+                f"... truncated (showing {len(shown)} of {total}). "
+                f"Increase max to see more (max {max_allowed})."
+            )
+
+        return "\n".join(lines)
+
+    if format == "json":
+        if detailed:
+            entries_json = [
+                {"name": name, "mode": filemode(mode), "size": size}
+                for name, mode, size in shown
+            ]
+        else:
+            entries_json = [{"name": name} for name, _mode, _size in shown]
+
+        return {
+            "entries": entries_json,
+            "total": total,
+            "shown": len(shown),
+            "truncated": truncated,
+            "max_allowed": max_allowed,
+        }
+
+    raise ValueError('format must be "text" or "json"')
 
 
 @mcp.tool
