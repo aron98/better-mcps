@@ -16,53 +16,30 @@ Or with `uv`:
 uv pip install -e .
 ```
 
----
+## Included MCP servers
 
-## MCP: `filesystem`
+- [`filesystem`](src/filesystem/README.md) — safe, root-scoped filesystem tools (absolute paths only)
 
-A safe, root-scoped filesystem MCP.
+## Run an MCP (STDIO)
 
-### Run locally (STDIO transport)
+Each MCP in this repo runs over **STDIO** by default.
 
-FastMCP defaults to **STDIO** when you call `run()`.
+After installing, run the MCP via its console script (preferred) or module entrypoint.
 
-This server **requires** you to pass one or more *absolute* allowed root directories on the command line.
+Example:
 
 ```bash
-# Option 1: module entrypoint
-python -m filesystem /absolute/allowed/root1 /absolute/allowed/root2
-
-# Option 2: console script
 filesystem /absolute/allowed/root1 /absolute/allowed/root2
+# or:
+python -m filesystem /absolute/allowed/root1 /absolute/allowed/root2
 ```
 
-### Claude Desktop example
+## Adding a new MCP
 
-In your Claude Desktop MCP config, point at the installed entrypoint and pass the allowed roots as arguments.
+Convention:
 
-Example (adjust paths as needed):
-
-```json
-{
-  "mcpServers": {
-    "filesystem": {
-      "command": "python",
-      "args": [
-        "-m",
-        "filesystem",
-        "/absolute/allowed/root1",
-        "/absolute/allowed/root2"
-      ]
-    }
-  }
-}
-```
-
-### Provided tools/resources
-
-#### Tools
-- `list_dir(path: str) -> list[str]` (absolute path required)
-- `read_text_file(path: str) -> str` (absolute path required)
-
-#### Resources
-- `resource://roots` (list allowed roots)
+- Add a new package at `src/<name>/`
+- Implement the server in `src/<name>/server.py` with a `main()`
+- Provide `src/<name>/__main__.py` so it can run as a module
+- Add a console script in `pyproject.toml` under `[project.scripts]`
+- Add `src/<name>/README.md` and link it from this root README
