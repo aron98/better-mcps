@@ -19,7 +19,6 @@ jobs:
       ref: ${{ github.event.inputs.ref || '' }}
 
   publish:
-    environment: pypi
     needs: ci
     uses: ./.github/workflows/publish-reusable.yml
     with:

@@ -19,6 +19,7 @@ permissions:
 
 jobs:
   build-and-publish:
+    environment: pypi
     runs-on: ubuntu-latest
     defaults:
       run:
