@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "better-mcps-filesystem"
-version = "0.1.0"
+version = "0.1.1"
 description = "A safe, root-scoped filesystem MCP server (FastMCP / MCP 2.0)."
 readme = "README.md"
 requires-python = ">=3.10"
