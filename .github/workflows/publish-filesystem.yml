@@ -36,14 +36,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq
 
-      - uses: ./.github/actions/python-ci-multi
+      - uses: aron98/better-mcps/.github/actions/python-ci-multi@main
         with:
           modules_json: '["filesystem"]'
 
-      - uses: ./.github/actions/python-build
+      - uses: aron98/better-mcps/.github/actions/python-build@main
         with:
           module: filesystem
 
-      - uses: ./.github/actions/pypi-publish
+      - uses: aron98/better-mcps/.github/actions/pypi-publish@main
         with:
           dist_dir: filesystem/dist

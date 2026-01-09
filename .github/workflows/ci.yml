@@ -44,6 +44,6 @@ jobs:
           python-version: "3.11"
 
       - name: Run module CI
-        uses: ./.github/actions/python-ci-multi
+        uses: aron98/better-mcps/.github/actions/python-ci-multi@main
         with:
           modules_json: ${{ needs.select-modules.outputs.modules_json }}
