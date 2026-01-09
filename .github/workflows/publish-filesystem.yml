@@ -15,16 +15,35 @@ on:
         description: "Git ref to publish (e.g. refs/tags/better-mcps-filesystem-v0.1.1). Leave empty to use the workflow run ref."
         required: false
         type: string
-jobs:
-  ci:
-    uses: ./.github/workflows/ci-reusable.yml
-    with:
-      modules_json: '["filesystem"]'
-      ref: ${{ github.event.inputs.ref || '' }}
 
+jobs:
   publish:
-    needs: ci
-    uses: ./.github/workflows/publish-reusable.yml
-    with:
-      package: filesystem
-      ref: ${{ github.event.inputs.ref || '' }}
+    environment: pypi
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # On manual runs, allow publishing a specific tag/sha.
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - uses: ./.github/actions/python-ci-multi
+        with:
+          modules_json: '["filesystem"]'
+
+      - uses: ./.github/actions/python-build
+        with:
+          module: filesystem
+
+      - uses: ./.github/actions/pypi-publish
+        with:
+          dist_dir: filesystem/dist

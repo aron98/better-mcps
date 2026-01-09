@@ -32,7 +32,18 @@ jobs:
 
   ci:
     needs: select-modules
-    # Always run so branch protection has a stable check name.
-    uses: ./.github/workflows/ci-reusable.yml
-    with:
-      modules_json: ${{ needs.select-modules.outputs.modules_json }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run module CI
+        uses: ./.github/actions/python-ci-multi
+        with:
+          modules_json: ${{ needs.select-modules.outputs.modules_json }}

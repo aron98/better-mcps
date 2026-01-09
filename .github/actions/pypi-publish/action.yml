@@ -1,0 +1,15 @@
+name: PyPI publish
+description: "Publish built distributions to PyPI via Trusted Publishing"
+
+inputs:
+  dist_dir:
+    description: "Directory containing built distributions (e.g. filesystem/dist)"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        packages-dir: ${{ inputs.dist_dir }}

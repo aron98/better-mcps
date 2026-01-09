@@ -1,0 +1,18 @@
+name: Python build
+description: "Build wheel/sdist for a module directory"
+
+inputs:
+  module:
+    description: "Module directory (e.g. filesystem)"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Build
+      shell: bash
+      run: |
+        set -euo pipefail
+        python -m pip install --upgrade pip
+        python -m pip install build
+        python -m build "./${{ inputs.module }}"

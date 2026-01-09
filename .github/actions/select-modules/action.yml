@@ -26,9 +26,70 @@ runs:
       run: |
         set -euo pipefail
 
-        modules_json=$(python "${{ github.action_path }}/select_modules.py" \
-          --manifest "${{ inputs.manifest }}" \
-          --base "${{ inputs.base_sha }}" \
-          --head "${{ inputs.head_sha }}")
+        MANIFEST="${{ inputs.manifest }}"
+        if [[ ! -f "$MANIFEST" ]]; then
+          echo "manifest not found: $MANIFEST" >&2
+          exit 1
+        fi
+
+        # Module names are the JSON keys.
+        mapfile -t ALL_MODULES < <(jq -r 'keys[]' "$MANIFEST")
+
+        BASE="${{ inputs.base_sha }}"
+        HEAD="${{ inputs.head_sha }}"
+
+        mapfile -t CHANGED < <(git diff --name-only "$BASE" "$HEAD" || true)
+
+        if [[ ${#CHANGED[@]} -eq 0 ]]; then
+          echo "modules_json=[]" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        # If any changed file is outside module directories, run all modules.
+        TEST_ALL=0
+        for f in "${CHANGED[@]}"; do
+          UNDER=0
+          for m in "${ALL_MODULES[@]}"; do
+            if [[ "$f" == "$m/"* ]]; then
+              UNDER=1
+              break
+            fi
+          done
+          if [[ "$UNDER" == "0" ]]; then
+            TEST_ALL=1
+            break
+          fi
+        done
+
+        SELECTED=()
+        if [[ "$TEST_ALL" == "1" ]]; then
+          SELECTED=("${ALL_MODULES[@]}")
+        else
+          for m in "${ALL_MODULES[@]}"; do
+            for f in "${CHANGED[@]}"; do
+              if [[ "$f" == "$m/"* ]]; then
+                SELECTED+=("$m")
+                break
+              fi
+            done
+          done
+        fi
+
+        # Deduplicate
+        UNIQUE=()
+        for m in "${SELECTED[@]}"; do
+          SEEN=0
+          for u in "${UNIQUE[@]}"; do
+            if [[ "$u" == "$m" ]]; then
+              SEEN=1
+              break
+            fi
+          done
+          if [[ "$SEEN" == "0" ]]; then
+            UNIQUE+=("$m")
+          fi
+        done
+
+        modules_json=$(printf '%s\n' "${UNIQUE[@]}" | jq -R -s -c 'split("\n")[:-1]')
 
         echo "modules_json=${modules_json}" >> "$GITHUB_OUTPUT"

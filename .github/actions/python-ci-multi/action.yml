@@ -1,0 +1,44 @@
+name: Python CI (multi)
+description: "Run ruff, mypy, compileall, and pytest for one or more module directories"
+
+inputs:
+  modules_json:
+    description: "JSON array of module directories (e.g. [\"filesystem\"])"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install CI tools
+      shell: bash
+      run: |
+        set -euo pipefail
+        python -m pip install --upgrade pip
+        python -m pip install ruff mypy pytest
+
+    - name: Run CI per module
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        mods='${{ inputs.modules_json }}'
+        if [[ "$mods" == "[]" ]]; then
+          echo "No modules selected; skipping."
+          exit 0
+        fi
+
+        # Parse JSON array -> newline list
+        mapfile -t MODULES < <(printf '%s' "$mods" | jq -r '.[]')
+
+        for m in "${MODULES[@]}"; do
+          echo "==============================="
+          echo "MODULE: $m"
+          echo "==============================="
+
+          python -m pip install -e "./$m"
+
+          ruff check "$m"
+          mypy "$m/src"
+          python -m compileall -q "$m/src"
+          pytest "$m"
+        done
