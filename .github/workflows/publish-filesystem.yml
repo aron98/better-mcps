@@ -6,8 +6,13 @@ on:
       - "filesystem-v*"
 
 jobs:
+  ci:
+    uses: ./.github/workflows/ci-reusable.yml
+    with:
+      modules_json: '["filesystem"]'
+
   publish:
+    needs: ci
     uses: ./.github/workflows/publish-reusable.yml
     with:
       package: filesystem
-      dist_name: better-mcps-filesystem
