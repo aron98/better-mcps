@@ -63,16 +63,20 @@ jobs:
           uv pip install ruff mypy pytest
 
       - name: Ruff
-        run: uv run ruff check ${{ matrix.package }}
+        working-directory: ${{ matrix.package }}
+        run: uv run ruff check .
 
       - name: Mypy
-        run: uv run mypy ${{ matrix.package }}/src
+        working-directory: ${{ matrix.package }}
+        run: uv run mypy src
 
       - name: Compile
-        run: uv run python -m compileall -q ${{ matrix.package }}/src
+        working-directory: ${{ matrix.package }}
+        run: uv run python -m compileall -q src
 
       - name: Pytest
-        run: uv run pytest -q ${{ matrix.package }}
+        working-directory: ${{ matrix.package }}
+        run: uv run pytest -q
 
   build:
     needs: [detect-packages, test]
