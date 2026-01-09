@@ -58,20 +58,21 @@ jobs:
       - name: Install dependencies
         working-directory: ${{ matrix.package }}
         run: |
+          uv venv
           uv pip install -e .
           uv pip install ruff mypy pytest
 
       - name: Ruff
-        run: ruff check ${{ matrix.package }}
+        run: uv run ruff check ${{ matrix.package }}
 
       - name: Mypy
-        run: mypy ${{ matrix.package }}/src
+        run: uv run mypy ${{ matrix.package }}/src
 
       - name: Compile
-        run: python -m compileall -q ${{ matrix.package }}/src
+        run: uv run python -m compileall -q ${{ matrix.package }}/src
 
       - name: Pytest
-        run: pytest -q ${{ matrix.package }}
+        run: uv run pytest -q ${{ matrix.package }}
 
   build:
     needs: [detect-packages, test]
@@ -94,7 +95,12 @@ jobs:
           python-version: "3.11"
 
       - name: Build package
-        run: uv build ./${{ matrix.package }}
+        run: |
+          cd ${{ matrix.package }}
+          uv venv
+          uv pip install -e .
+          uv pip install build
+          uv run python -m build
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
