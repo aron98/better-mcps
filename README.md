@@ -1,6 +1,6 @@
-# better-filesystem-mcp
+# better-mcps
 
-A minimal **FastMCP (MCP 2.0)** server that exposes a couple of safe, root-scoped filesystem tools and resources.
+A collection of small, well-written **FastMCP (MCP 2.0)** servers that do simple things well.
 
 ## Install
 
@@ -16,7 +16,13 @@ Or with `uv`:
 uv pip install -e .
 ```
 
-## Run locally (STDIO transport)
+---
+
+## MCP: `filesystem`
+
+A safe, root-scoped filesystem MCP.
+
+### Run locally (STDIO transport)
 
 FastMCP defaults to **STDIO** when you call `run()`.
 
@@ -24,13 +30,13 @@ This server **requires** you to pass one or more *absolute* allowed root directo
 
 ```bash
 # Option 1: module entrypoint
-python -m better_filesystem_mcp /absolute/allowed/root1 /absolute/allowed/root2
+python -m filesystem /absolute/allowed/root1 /absolute/allowed/root2
 
 # Option 2: console script
-better-filesystem-mcp /absolute/allowed/root1 /absolute/allowed/root2
+filesystem /absolute/allowed/root1 /absolute/allowed/root2
 ```
 
-## Claude Desktop example
+### Claude Desktop example
 
 In your Claude Desktop MCP config, point at the installed entrypoint and pass the allowed roots as arguments.
 
@@ -39,11 +45,11 @@ Example (adjust paths as needed):
 ```json
 {
   "mcpServers": {
-    "better-filesystem": {
+    "filesystem": {
       "command": "python",
       "args": [
         "-m",
-        "better_filesystem_mcp",
+        "filesystem",
         "/absolute/allowed/root1",
         "/absolute/allowed/root2"
       ]
@@ -52,11 +58,11 @@ Example (adjust paths as needed):
 }
 ```
 
-## Provided tools/resources
+### Provided tools/resources
 
-### Tools
+#### Tools
 - `list_dir(path: str) -> list[str]` (absolute path required)
 - `read_text_file(path: str) -> str` (absolute path required)
 
-### Resources
+#### Resources
 - `resource://roots` (list allowed roots)
