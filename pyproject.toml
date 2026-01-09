@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling>=1.21.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "better-filesystem-mcp"
+version = "0.1.0"
+description = "A minimal FastMCP (MCP 2.0) server that exposes simple filesystem tools/resources."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "better-filesystem contributors" }]
+dependencies = [
+  "fastmcp>=2.0.0",
+]
+
+[project.scripts]
+better-filesystem-mcp = "better_filesystem_mcp.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/better_filesystem_mcp"]
