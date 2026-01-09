@@ -1,0 +1,13 @@
+name: Publish to PyPI (filesystem)
+
+on:
+  push:
+    tags:
+      - "filesystem-v*"
+
+jobs:
+  publish:
+    uses: ./.github/workflows/publish-reusable.yml
+    with:
+      package: filesystem
+      dist_name: better-mcps-filesystem

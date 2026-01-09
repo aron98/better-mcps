@@ -81,7 +81,7 @@ def roots_resource() -> list[str]:
 
 def _parse_args(argv: list[str]) -> list[Path]:
     parser = argparse.ArgumentParser(
-        prog="better-filesystem-mcp",
+        prog="better-mcps-filesystem",
         description="FastMCP server exposing filesystem tools scoped to allowed root directories.",
     )
     parser.add_argument(

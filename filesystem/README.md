@@ -13,10 +13,10 @@ A safe, root-scoped filesystem MCP.
 
 ```bash
 # Console script
-filesystem /absolute/allowed/root1 /absolute/allowed/root2
+better-mcps-filesystem /absolute/allowed/root1 /absolute/allowed/root2
 
 # Module entrypoint
-python -m filesystem /absolute/allowed/root1 /absolute/allowed/root2
+python -m better_mcps_filesystem /absolute/allowed/root1 /absolute/allowed/root2
 ```
 
 ## Claude Desktop example
@@ -25,10 +25,8 @@ python -m filesystem /absolute/allowed/root1 /absolute/allowed/root2
 {
   "mcpServers": {
     "filesystem": {
-      "command": "python",
+      "command": "better-mcps-filesystem",
       "args": [
-        "-m",
-        "filesystem",
         "/absolute/allowed/root1",
         "/absolute/allowed/root2"
       ]
@@ -44,10 +42,10 @@ So you must **mount** any directories you want this MCP to be able to access (re
 
 ### Build
 
-From the repo root:
+From the `filesystem/` directory:
 
 ```bash
-docker build -t better-mcps:latest .
+docker build -t better-mcps-filesystem:latest .
 ```
 
 ### Run
@@ -58,7 +56,7 @@ Mount the host directories into the container and pass the *container paths* as 
 docker run --rm -i \
   -v "/Users/erdelyia/Projects/project:/roots/project:rw" \
   -v "/Users/erdelyia/Projects/project2:/roots/project2:rw" \
-  better-mcps:latest \
+  better-mcps-filesystem:latest \
   /roots/project /roots/project2
 ```
 
@@ -77,7 +75,7 @@ Example (conceptually):
 {
   "mcpServers": {
     "filesystem": {
-      "command": "filesystem",
+      "command": "better-mcps-filesystem",
       "args": ["${workspaceFolder}"]
     }
   }

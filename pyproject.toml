@@ -1,21 +1,15 @@
-[build-system]
-requires = ["hatchling>=1.21.0"]
-build-backend = "hatchling.build"
+[tool.ruff]
+line-length = 100
 
-[project]
-name = "better-mcps"
-version = "0.1.0"
-description = "Minimal FastMCP (MCP 2.0) servers that do simple things well."
-readme = "README.md"
-requires-python = ">=3.10"
-license = { text = "MIT" }
-authors = [{ name = "Aron Erdelyi" }]
-dependencies = [
-  "fastmcp>=2.0.0",
-]
+[tool.mypy]
+python_version = "3.10"
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+disallow_untyped_defs = false
+check_untyped_defs = true
 
-[project.scripts]
-filesystem = "filesystem.server:main"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/filesystem"]
+[tool.pytest.ini_options]
+# Repo-level default; packages can override.
+addopts = "-q"

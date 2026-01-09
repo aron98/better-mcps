@@ -1,0 +1,19 @@
+name: CI (filesystem)
+
+on:
+  pull_request:
+    paths:
+      - "filesystem/**"
+      - ".github/workflows/**"
+  push:
+    branches:
+      - main
+    paths:
+      - "filesystem/**"
+      - ".github/workflows/**"
+
+jobs:
+  filesystem:
+    uses: ./.github/workflows/ci-reusable.yml
+    with:
+      package: filesystem

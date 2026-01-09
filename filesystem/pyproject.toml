@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling>=1.21.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "better-mcps-filesystem"
+version = "0.1.0"
+description = "A safe, root-scoped filesystem MCP server (FastMCP / MCP 2.0)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Aron Erdelyi" }]
+dependencies = [
+  "fastmcp>=2.0.0",
+]
+
+[project.scripts]
+better-mcps-filesystem = "better_mcps_filesystem.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/better_mcps_filesystem"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+disallow_untyped_defs = false
+check_untyped_defs = true
