@@ -19,3 +19,4 @@ jobs:
           # Tags are created like: <component>-v<version>
           command: manifest
           default-branch: main
+          skip-github-release: true

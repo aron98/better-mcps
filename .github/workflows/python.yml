@@ -160,3 +160,66 @@ jobs:
         with:
           packages-dir: dist/
           attestations: false
+
+  publish-docker:
+    needs: [detect-packages, build]
+    if: github.event_name == 'release'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.detect-packages.outputs.packages) }}
+
+    name: Publish Docker image (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    environment: docker
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine version + match package
+        id: match
+        run: |
+          set -euo pipefail
+
+          TAG="${{ github.event.release.tag_name }}"
+          # Expected: better-mcps-<name>-vX.Y.Z
+          NAME_PART="${TAG#better-mcps-}"
+          NAME_PART="${NAME_PART%-v*}"
+          VERSION="${TAG##*-v}"
+
+          if [[ "${{ matrix.package }}" != "$NAME_PART" ]]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ ! -f "${{ matrix.package }}/Dockerfile" ]]; then
+            echo "Missing Dockerfile for package '${{ matrix.package }}'" >&2
+            exit 1
+          fi
+
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        if: steps.match.outputs.publish == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        if: steps.match.outputs.publish == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.package }}
+          file: ${{ matrix.package }}/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/aron98/better-mcps-${{ matrix.package }}:${{ steps.match.outputs.version }}
+            ghcr.io/aron98/better-mcps-${{ matrix.package }}:latest

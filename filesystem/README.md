@@ -1,6 +1,8 @@
-# MCP: `filesystem`
+# Better MCP: `filesystem`
 
 A safe, root-scoped filesystem MCP.
+
+Part of the [`better-mcps`](https://github.com/aron98/better-mcps) monorepo.
 
 ## Security model
 
@@ -12,10 +14,13 @@ A safe, root-scoped filesystem MCP.
 ## Run (STDIO)
 
 ```bash
-# Console script
+# Recommended (no clone): run from PyPI via uvx
+uvx better-mcps-filesystem /absolute/allowed/root1 /absolute/allowed/root2
+
+# Alternatively, if you installed locally:
 better-mcps-filesystem /absolute/allowed/root1 /absolute/allowed/root2
 
-# Module entrypoint
+# Or (module entrypoint):
 python -m better_mcps_filesystem /absolute/allowed/root1 /absolute/allowed/root2
 ```
 
@@ -25,8 +30,9 @@ python -m better_mcps_filesystem /absolute/allowed/root1 /absolute/allowed/root2
 {
   "mcpServers": {
     "filesystem": {
-      "command": "better-mcps-filesystem",
+      "command": "uvx",
       "args": [
+        "better-mcps-filesystem",
         "/absolute/allowed/root1",
         "/absolute/allowed/root2"
       ]
@@ -40,25 +46,19 @@ python -m better_mcps_filesystem /absolute/allowed/root1 /absolute/allowed/root2
 When running this MCP in Docker, the server can only access paths *inside the container*.
 So you must **mount** any directories you want this MCP to be able to access (read/list today; edit/write if you add write tools later).
 
-### Build
-
-From the `filesystem/` directory:
-
-```bash
-docker build -t better-mcps-filesystem:latest .
-```
-
 ### Run
 
-Mount the host directories into the container and pass the *container paths* as allowed roots.
+You must **mount** the directories you want this MCP to access, and pass the *container paths* as the allowed roots.
 
 ```bash
 docker run --rm -i \
   -v "/Users/erdelyia/Projects/project:/roots/project:rw" \
   -v "/Users/erdelyia/Projects/project2:/roots/project2:rw" \
-  better-mcps-filesystem:latest \
+  ghcr.io/aron98/better-mcps-filesystem:latest \
   /roots/project /roots/project2
 ```
+
+Alternatively, you can build the image yourself from `filesystem/Dockerfile`.
 
 Notes:
 - `-i` keeps STDIN open (needed for MCP over stdio).
@@ -75,8 +75,8 @@ Example (conceptually):
 {
   "mcpServers": {
     "filesystem": {
-      "command": "better-mcps-filesystem",
-      "args": ["${workspaceFolder}"]
+      "command": "uvx",
+      "args": ["better-mcps-filesystem", "${workspaceFolder}"]
     }
   }
 }
