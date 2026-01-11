@@ -1,12 +1,13 @@
 name: Python
 
 on:
+  pull_request:
   push:
     branches:
       - main
-  pull_request:
-  release:
-    types: [published]
+
+permissions:
+  contents: read
 
 jobs:
   detect-packages:
@@ -112,114 +113,14 @@ jobs:
           name: dist-${{ matrix.package }}
           path: ${{ matrix.package }}/dist/
 
-  publish:
-    needs: [detect-packages, build]
-    if: github.event_name == 'release'
-
-    strategy:
-      fail-fast: false
-      matrix:
-        package: ${{ fromJson(needs.detect-packages.outputs.packages) }}
-
-    name: Publish ${{ matrix.package }}
+  check-status:
     runs-on: ubuntu-latest
-    environment: pypi
-
-    permissions:
-      contents: read
-      id-token: write
-
+    needs: [test, build]
+    if: always()
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dist-${{ matrix.package }}
-          path: dist/
-
-      - name: Only publish matching package for this tag
-        id: match
-        run: |
-          set -euo pipefail
-
-          TAG="${{ github.event.release.tag_name }}"
-          # Expected: better-mcps-<name>-vX.Y.Z
-          NAME_PART="${TAG#better-mcps-}"
-          NAME_PART="${NAME_PART%-v*}"
-
-          if [[ "${{ matrix.package }}" == "$NAME_PART" ]]; then
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Publish package to PyPI
-        if: steps.match.outputs.publish == 'true'
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: dist/
-          attestations: false
-
-  publish-docker:
-    needs: [detect-packages, build]
-    if: github.event_name == 'release'
-
-    strategy:
-      fail-fast: false
-      matrix:
-        package: ${{ fromJson(needs.detect-packages.outputs.packages) }}
-
-    name: Publish Docker image (${{ matrix.package }})
-    runs-on: ubuntu-latest
-    environment: docker
-
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Determine version + match package
-        id: match
-        run: |
-          set -euo pipefail
-
-          TAG="${{ github.event.release.tag_name }}"
-          # Expected: better-mcps-<name>-vX.Y.Z
-          NAME_PART="${TAG#better-mcps-}"
-          NAME_PART="${NAME_PART%-v*}"
-          VERSION="${TAG##*-v}"
-
-          if [[ "${{ matrix.package }}" != "$NAME_PART" ]]; then
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if [[ ! -f "${{ matrix.package }}/Dockerfile" ]]; then
-            echo "Missing Dockerfile for package '${{ matrix.package }}'" >&2
-            exit 1
-          fi
-
-          echo "publish=true" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Log in to GHCR
-        if: steps.match.outputs.publish == 'true'
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push Docker image
-        if: steps.match.outputs.publish == 'true'
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ matrix.package }}
-          file: ${{ matrix.package }}/Dockerfile
-          push: true
-          tags: |
-            ghcr.io/aron98/better-mcps-${{ matrix.package }}:${{ steps.match.outputs.version }}
-            ghcr.io/aron98/better-mcps-${{ matrix.package }}:latest
+      - name: Checks succeeded
+        if: ${{ !(contains(needs.*.result, 'failure')) }}
+        run: exit 0
+      - name: Checks failed
+        if: ${{ contains(needs.*.result, 'failure') }}
+        run: exit 1
