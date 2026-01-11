@@ -1,0 +1,74 @@
+name: Tag (auto)
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  detect-packages:
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.find.outputs.packages }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Find Python packages
+        id: find
+        run: |
+          set -euo pipefail
+          PACKAGES=$(find . -mindepth 2 -name pyproject.toml -exec dirname {} \; \
+            | sed 's|^\./||' \
+            | sed 's|/.*$||' \
+            | sort -u \
+            | jq -R -s -c 'split("\n")[:-1]')
+          echo "packages=$PACKAGES" >> "$GITHUB_OUTPUT"
+
+  tag:
+    needs: [detect-packages]
+    if: github.actor != 'github-actions[bot]'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.detect-packages.outputs.packages) }}
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install python-semantic-release
+        run: python -m pip install --upgrade pip python-semantic-release
+
+      - name: Configure git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      - name: Version + tag (per package)
+        working-directory: ${{ matrix.package }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Use https auth so push works with the token
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          # Update version + changelog, create tag and push
+          semantic-release version

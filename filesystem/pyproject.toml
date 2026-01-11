@@ -35,3 +35,17 @@ warn_unused_ignores = true
 no_implicit_optional = true
 disallow_untyped_defs = false
 check_untyped_defs = true
+
+[tool.semantic_release]
+commit_parser = "conventional"
+tag_format = "better-mcps-filesystem-v{version}"
+version_toml = ["pyproject.toml:project.version"]
+version_variables = ["src/better_mcps_filesystem/__init__.py:__version__"]
+
+[tool.semantic_release.commit_parser_options]
+parse_squash_commits = true
+ignore_merge_commits = true
+
+[tool.semantic_release.changelog.default_templates]
+changelog_file = "CHANGELOG.md"
+output_format = "md"

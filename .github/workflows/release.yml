@@ -1,0 +1,22 @@
+name: Release (manual)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  create-releases:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create GitHub releases for latest tags
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
+        run: |
+          python scripts/release.py create-releases
