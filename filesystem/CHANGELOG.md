@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/aron98/better-mcps/compare/better-mcps-filesystem-v0.3.0...better-mcps-filesystem-v0.3.1) (2026-01-11)
+
+
+### Documentation
+
+* Update filesystem readme; ci: publish to ghcr ([a6103cd](https://github.com/aron98/better-mcps/commit/a6103cdcbd7c119a256b9ac9b5619e5f40194db8))
+
 ## [0.3.0](https://github.com/aron98/better-mcps/compare/better-mcps-filesystem-v0.2.0...better-mcps-filesystem-v0.3.0) (2026-01-11)
 
 
