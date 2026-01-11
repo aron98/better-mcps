@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/aron98/better-mcps/compare/better-mcps-filesystem-v0.2.0...better-mcps-filesystem-v0.3.0) (2026-01-11)
+
+
+### Features
+
+* **filesystem:** pydantic-validated tool params; improve list_dir output; adjust python workflow ([ff42791](https://github.com/aron98/better-mcps/commit/ff42791ff6a5724bbfec01389017164d10ed1d4d))
+
 ## [0.2.0](https://github.com/aron98/better-mcps/compare/better-mcps-filesystem-v0.1.1...better-mcps-filesystem-v0.2.0) (2026-01-09)
 
 
