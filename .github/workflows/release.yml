@@ -2,6 +2,11 @@ name: Release (manual)
 
 on:
   workflow_dispatch:
+    inputs:
+      package:
+        description: "Optional package directory to release (e.g. filesystem). Leave empty to release all latest tags that don't have a GitHub Release yet."
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -15,8 +20,55 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create GitHub releases for latest tags
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Create GitHub Releases
         env:
           GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
+          PACKAGE: ${{ github.event.inputs.package }}
         run: |
-          python scripts/release.py create-releases
+          set -euo pipefail
+
+          # Discover package dirs
+          pkgs=$(find . -mindepth 2 -name pyproject.toml -exec dirname {} \; \
+            | sed 's|^\./||' \
+            | sed 's|/.*$||' \
+            | sort -u)
+
+          if [[ -n "${PACKAGE}" ]]; then
+            if ! echo "$pkgs" | grep -qx "${PACKAGE}"; then
+              echo "Unknown package: ${PACKAGE}" >&2
+              exit 1
+            fi
+            pkgs="${PACKAGE}"
+          fi
+
+          echo "Packages to process:"
+          echo "$pkgs"
+
+          while IFS= read -r pkg; do
+            [[ -z "$pkg" ]] && continue
+
+            prefix="better-mcps-${pkg}-v"
+            tag=$(git tag --list "${prefix}*" --sort=-creatordate | head -n 1 || true)
+            if [[ -z "$tag" ]]; then
+              echo "No tags found for $pkg, skipping"
+              continue
+            fi
+
+            # If release exists, skip.
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "Release exists for $tag, skipping"
+              continue
+            fi
+
+            version="${tag#${prefix}}"
+
+            echo "Creating release for $tag"
+            gh release create "$tag" \
+              --title "${pkg} ${version}" \
+              --notes "Release ${tag}"
+          done <<< "$pkgs"

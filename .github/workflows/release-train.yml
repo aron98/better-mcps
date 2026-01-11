@@ -1,0 +1,195 @@
+name: Release Train (bump PRs + tag on merge)
+
+on:
+  workflow_run:
+    workflows: ["Python"]
+    types: [completed]
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  # A) After successful CI on main, open bump PRs (one per package)
+  bump-prs:
+    if: |
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Install python-semantic-release
+        run: python -m pip install --upgrade pip python-semantic-release
+
+      - name: Find packages
+        id: pkgs
+        run: |
+          set -euo pipefail
+          PACKAGES=$(find . -mindepth 2 -name pyproject.toml -exec dirname {} \; \
+            | sed 's|^\./||' \
+            | sed 's|/.*$||' \
+            | sort -u \
+            | jq -R -s -c 'split("\n")[:-1]')
+          echo "packages=$PACKAGES" >> "$GITHUB_OUTPUT"
+
+      - name: Create bump PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # Loop packages; if semantic-release says no release, skip.
+          packages='${{ steps.pkgs.outputs.packages }}'
+          echo "$packages" | jq -r '.[]' | while read -r pkg; do
+            echo "=== $pkg ==="
+
+            # Run semantic-release in the package dir but do not push/tag.
+            # This updates files (pyproject, __init__.py, CHANGELOG) as configured.
+            (cd "$pkg" && semantic-release version --no-push) || true
+
+            # If no changes, skip.
+            if git diff --quiet; then
+              echo "No release changes for $pkg"
+              git reset --hard
+              continue
+            fi
+
+            # Create a branch name that is deterministic per pkg (force update).
+            branch="release/${pkg}"
+
+            git checkout -B "$branch"
+            git add -A
+            git commit -m "chore(release): bump ${pkg}"
+            git push -f origin "$branch"
+
+            # Create or update PR.
+            existing=$(gh pr list --head "$branch" --base main --json number --jq '.[0].number' || true)
+            if [ -n "$existing" ]; then
+              echo "PR already exists for $pkg: #$existing"
+            else
+              gh pr create \
+                --base main \
+                --head "$branch" \
+                --title "chore(release): bump ${pkg}" \
+                --body "Automated version/changelog update for ${pkg}." \
+                --label release
+            fi
+
+            # Enable auto-merge (will still respect required reviews).
+            pr_num=$(gh pr list --head "$branch" --base main --json number --jq '.[0].number')
+            gh pr merge "$pr_num" --auto --squash || true
+
+            # Return to main branch working state.
+            git checkout main
+            git reset --hard
+          done
+
+  # B) On push to main, if a bump PR was merged, create tags
+  tag-on-merge:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      - name: Tag any package version bumps in this merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # Use https auth so tag push works with token
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          # Find package pyproject.toml files changed in the pushed commit range.
+          # workflow_run merge commits will typically be single commit; push provides before/after.
+          before="${{ github.event.before }}"
+          after="${{ github.sha }}"
+
+          changed=$(git diff --name-only "$before" "$after" || true)
+
+          # For each top-level package with a changed pyproject.toml, tag it.
+          echo "$changed" | awk -F/ '$2=="pyproject.toml" {print $1}' | sort -u | while read -r pkg; do
+            [ -z "$pkg" ] && continue
+
+            pyproject="$pkg/pyproject.toml"
+            if [ ! -f "$pyproject" ]; then
+              continue
+            fi
+
+            version=$(python - <<'PY'
+import re,sys
+p=sys.argv[1]
+text=open(p,'r',encoding='utf-8').read()
+m=re.search(r'^version\s*=\s*"([^"]+)"\s*$', text, flags=re.M)
+if not m:
+  raise SystemExit(1)
+print(m.group(1))
+PY
+"$pyproject")
+
+            tag="better-mcps-${pkg}-v${version}"
+
+            # Defense in depth:
+            # - only tag if package __init__.__version__ matches
+            init_file=$(python - <<'PY'
+import glob,os,sys
+pkg=sys.argv[1]
+candidates=glob.glob(f"{pkg}/src/*/__init__.py")
+for c in candidates:
+  txt=open(c,'r',encoding='utf-8').read()
+  if "__version__" in txt:
+    print(c)
+    sys.exit(0)
+sys.exit(1)
+PY
+"$pkg" || true)
+
+            if [ -n "$init_file" ]; then
+              init_version=$(python - <<'PY'
+import re,sys
+p=sys.argv[1]
+text=open(p,'r',encoding='utf-8').read()
+m=re.search(r'^__version__\s*=\s*"([^"]+)"\s*$', text, flags=re.M)
+if not m:
+  raise SystemExit(1)
+print(m.group(1))
+PY
+"$init_file")
+
+              if [ "$init_version" != "$version" ]; then
+                echo "Version mismatch for $pkg: pyproject=$version init=$init_version" >&2
+                exit 1
+              fi
+            fi
+
+            if git rev-parse "$tag" >/dev/null 2>&1; then
+              echo "Tag already exists: $tag"
+              continue
+            fi
+
+            git tag -a "$tag" -m "Release $tag"
+            git push origin "$tag"
+            echo "Tagged $tag"
+          done

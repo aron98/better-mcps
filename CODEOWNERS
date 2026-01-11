@@ -1,0 +1,10 @@
+# Default owners for critical paths
+
+# Workflows and release scripts must be reviewed by the maintainer
+/.github/workflows/ @aron98
+/scripts/ @aron98
+
+# Package release config and version files should be guarded too
+/*/pyproject.toml @aron98
+/*/CHANGELOG.md @aron98
+/*/src/*/__init__.py @aron98

@@ -1,0 +1,99 @@
+name: Publish (on GitHub Release)
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish-pypi:
+    name: Publish PyPI
+    runs-on: ubuntu-latest
+    environment: pypi
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Determine package dir from tag
+        id: pkg
+        run: |
+          set -euo pipefail
+          TAG='${{ github.event.release.tag_name }}'
+          NAME_PART="${TAG#better-mcps-}"
+          NAME_PART="${NAME_PART%-v*}"
+          echo "package=$NAME_PART" >> "$GITHUB_OUTPUT"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build
+        working-directory: ${{ steps.pkg.outputs.package }}
+        run: |
+          uv venv
+          uv pip install -e .
+          uv pip install build
+          uv run python -m build
+
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: ${{ steps.pkg.outputs.package }}/dist
+          attestations: false
+
+  publish-docker:
+    name: Publish Docker
+    runs-on: ubuntu-latest
+    environment: docker
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Determine package + version
+        id: meta
+        run: |
+          set -euo pipefail
+          TAG='${{ github.event.release.tag_name }}'
+          NAME_PART="${TAG#better-mcps-}"
+          NAME_PART="${NAME_PART%-v*}"
+          VERSION="${TAG##*-v}"
+
+          echo "package=$NAME_PART" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          if [[ ! -f "$NAME_PART/Dockerfile" ]]; then
+            echo "Missing Dockerfile for package '$NAME_PART'" >&2
+            exit 1
+          fi
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ steps.meta.outputs.package }}
+          file: ${{ steps.meta.outputs.package }}/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/aron98/better-mcps-${{ steps.meta.outputs.package }}:${{ steps.meta.outputs.version }}
+            ghcr.io/aron98/better-mcps-${{ steps.meta.outputs.package }}:latest
