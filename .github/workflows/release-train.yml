@@ -15,10 +15,7 @@ permissions:
 jobs:
   # A) After successful CI on main, open bump PRs (one per package)
   bump-prs:
-    if: |
-      github.event_name == 'workflow_run' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main'
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
 
     steps:
@@ -127,69 +124,4 @@ jobs:
           before="${{ github.event.before }}"
           after="${{ github.sha }}"
 
-          changed=$(git diff --name-only "$before" "$after" || true)
-
-          # For each top-level package with a changed pyproject.toml, tag it.
-          echo "$changed" | awk -F/ '$2=="pyproject.toml" {print $1}' | sort -u | while read -r pkg; do
-            [ -z "$pkg" ] && continue
-
-            pyproject="$pkg/pyproject.toml"
-            if [ ! -f "$pyproject" ]; then
-              continue
-            fi
-
-            version=$(python - <<'PY'
-import re,sys
-p=sys.argv[1]
-text=open(p,'r',encoding='utf-8').read()
-m=re.search(r'^version\s*=\s*"([^"]+)"\s*$', text, flags=re.M)
-if not m:
-  raise SystemExit(1)
-print(m.group(1))
-PY
-"$pyproject")
-
-            tag="better-mcps-${pkg}-v${version}"
-
-            # Defense in depth:
-            # - only tag if package __init__.__version__ matches
-            init_file=$(python - <<'PY'
-import glob,os,sys
-pkg=sys.argv[1]
-candidates=glob.glob(f"{pkg}/src/*/__init__.py")
-for c in candidates:
-  txt=open(c,'r',encoding='utf-8').read()
-  if "__version__" in txt:
-    print(c)
-    sys.exit(0)
-sys.exit(1)
-PY
-"$pkg" || true)
-
-            if [ -n "$init_file" ]; then
-              init_version=$(python - <<'PY'
-import re,sys
-p=sys.argv[1]
-text=open(p,'r',encoding='utf-8').read()
-m=re.search(r'^__version__\s*=\s*"([^"]+)"\s*$', text, flags=re.M)
-if not m:
-  raise SystemExit(1)
-print(m.group(1))
-PY
-"$init_file")
-
-              if [ "$init_version" != "$version" ]; then
-                echo "Version mismatch for $pkg: pyproject=$version init=$init_version" >&2
-                exit 1
-              fi
-            fi
-
-            if git rev-parse "$tag" >/dev/null 2>&1; then
-              echo "Tag already exists: $tag"
-              continue
-            fi
-
-            git tag -a "$tag" -m "Release $tag"
-            git push origin "$tag"
-            echo "Tagged $tag"
-          done
+          python scripts/tag_on_merge.py "$before" "$after"
