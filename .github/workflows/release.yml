@@ -32,7 +32,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Discover package dirs
           pkgs=$(find . -mindepth 2 -name pyproject.toml -exec dirname {} \; \
             | sed 's|^\./||' \
             | sed 's|/.*$||' \
@@ -46,9 +45,6 @@ jobs:
             pkgs="${PACKAGE}"
           fi
 
-          echo "Packages to process:"
-          echo "$pkgs"
-
           while IFS= read -r pkg; do
             [[ -z "$pkg" ]] && continue
 
@@ -59,16 +55,15 @@ jobs:
               continue
             fi
 
-            # If release exists, skip.
             if gh release view "$tag" >/dev/null 2>&1; then
               echo "Release exists for $tag, skipping"
               continue
             fi
 
             version="${tag#${prefix}}"
-
             echo "Creating release for $tag"
             gh release create "$tag" \
               --title "${pkg} ${version}" \
               --notes "Release ${tag}"
+
           done <<< "$pkgs"

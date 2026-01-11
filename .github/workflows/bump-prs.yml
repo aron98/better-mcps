@@ -1,21 +1,17 @@
-name: Release Train (bump PRs + tag on merge)
+name: Bump PRs (per package)
 
 on:
   workflow_run:
     workflows: ["Python"]
     types: [completed]
-  push:
-    branches:
-      - main
 
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
-  # A) After successful CI on main, open bump PRs (one per package)
-  bump-prs:
-    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
+  bump:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
 
     steps:
@@ -28,6 +24,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y jq
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
       - name: Install python-semantic-release
         run: python -m pip install --upgrade pip python-semantic-release
@@ -49,23 +50,37 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Loop packages; if semantic-release says no release, skip.
           packages='${{ steps.pkgs.outputs.packages }}'
           echo "$packages" | jq -r '.[]' | while read -r pkg; do
             echo "=== $pkg ==="
 
-            # Run semantic-release in the package dir but do not push/tag.
-            # This updates files (pyproject, __init__.py, CHANGELOG) as configured.
-            (cd "$pkg" && semantic-release version --no-push) || true
+            # Determine last tag for this package.
+            prefix="better-mcps-${pkg}-v"
+            last_tag=$(git tag --list "${prefix}*" --sort=-creatordate | head -n 1 || true)
+            if [[ -z "$last_tag" ]]; then
+              since_ref=""
+            else
+              since_ref="$last_tag"
+            fi
 
-            # If no changes, skip.
+            bump=$(python scripts/bump_level.py "$pkg" "$since_ref")
+            echo "bump=$bump (since ${since_ref:-<none>})"
+
+            if [[ "$bump" == "none" ]]; then
+              echo "No conventional bump for $pkg; skipping"
+              continue
+            fi
+
+            # Run semantic-release to update files but do not push or tag.
+            # This updates pyproject.toml, __init__.py, and CHANGELOG.md as configured.
+            (cd "$pkg" && semantic-release version --"$bump" --no-push)
+
             if git diff --quiet; then
-              echo "No release changes for $pkg"
+              echo "No changes produced for $pkg; skipping"
               git reset --hard
               continue
             fi
 
-            # Create a branch name that is deterministic per pkg (force update).
             branch="release/${pkg}"
 
             git checkout -B "$branch"
@@ -73,7 +88,6 @@ jobs:
             git commit -m "chore(release): bump ${pkg}"
             git push -f origin "$branch"
 
-            # Create or update PR.
             existing=$(gh pr list --head "$branch" --base main --json number --jq '.[0].number' || true)
             if [ -n "$existing" ]; then
               echo "PR already exists for $pkg: #$existing"
@@ -86,42 +100,10 @@ jobs:
                 --label release
             fi
 
-            # Enable auto-merge (will still respect required reviews).
             pr_num=$(gh pr list --head "$branch" --base main --json number --jq '.[0].number')
+            # Enable auto-merge (will still respect required reviews)
             gh pr merge "$pr_num" --auto --squash || true
 
-            # Return to main branch working state.
             git checkout main
             git reset --hard
           done
-
-  # B) On push to main, if a bump PR was merged, create tags
-  tag-on-merge:
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Configure git
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-
-      - name: Tag any package version bumps in this merge
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-
-          # Use https auth so tag push works with token
-          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-
-          # Find package pyproject.toml files changed in the pushed commit range.
-          # workflow_run merge commits will typically be single commit; push provides before/after.
-          before="${{ github.event.before }}"
-          after="${{ github.sha }}"
-
-          python scripts/tag_on_merge.py "$before" "$after"
