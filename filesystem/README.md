@@ -88,15 +88,18 @@ If you use a multi-root workspace, VS Code can target a specific folder (e.g. `$
 
 ### Tools
 
-- `list_dir(path: str, max: int = 200, format: "text"|"json" = "text", detailed: bool = False) -> str | dict`
-  - `path` must be an **absolute directory path** under an allowed root
+- `list_dir(params: object) -> str | dict`
+  - **Params object** (Pydantic-validated):
+    - `path` (string, required): absolute directory path under an allowed root
+    - `max` (int, default `200`, max `2000`)
+    - `format` ("text"|"json", default `"text"`)
+    - `detailed` (bool, default `false`): include `mode` (permissions) and `size`
   - Includes hidden files; sorted by name
-  - `max` is clamped server-side to **2000**
-  - If output is truncated, a hint is included
-  - `detailed=true` adds `mode` (permissions) and `size`
+  - If output is truncated, a hint is included (text mode appends a line; json mode includes `truncated/total/shown`)
 
-- `read_text_file(path: str) -> str`
-  - `path` must be an **absolute file path** under an allowed root
+- `read_text_file(params: object) -> str`
+  - **Params object**:
+    - `path` (string, required): absolute file path under an allowed root
   - file is read as UTF-8
 
 ### Resources

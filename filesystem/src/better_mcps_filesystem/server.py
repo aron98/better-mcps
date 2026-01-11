@@ -6,9 +6,33 @@ from pathlib import Path
 from stat import filemode
 from typing import Literal
 
+from pydantic import BaseModel, Field
+
 from fastmcp import FastMCP
 
 mcp: FastMCP = FastMCP("better-mcps-filesystem")
+
+
+class ListDirParams(BaseModel):
+    path: str = Field(..., description="Absolute directory path to list")
+    max: int = Field(
+        200,
+        ge=0,
+        le=2000,
+        description="Maximum number of entries to return (server max 2000)",
+    )
+    format: Literal["text", "json"] = Field(
+        "text",
+        description='Output format: "text" (default) or "json"',
+    )
+    detailed: bool = Field(
+        False,
+        description="If true, include permissions (mode) and size",
+    )
+
+
+class ReadTextFileParams(BaseModel):
+    path: str = Field(..., description="Absolute file path to read")
 
 # Configured at runtime (in main) from CLI args.
 _ALLOWED_ROOTS: list[Path] = []
@@ -49,12 +73,7 @@ def _resolve_allowed_abs_path(user_path: str) -> Path:
 
 
 @mcp.tool
-def list_dir(
-    path: str,
-    max: int = 200,
-    format: Literal["text", "json"] = "text",
-    detailed: bool = False,
-) -> str | dict:
+def list_dir(params: ListDirParams) -> str | dict:
     """List directory entries for an absolute directory path under an allowed root.
 
     Defaults are intentionally conservative to avoid dumping extremely large
@@ -67,13 +86,14 @@ def list_dir(
         detailed: If true, include permissions and size.
     """
 
-    p = _resolve_allowed_abs_path(path)
+    p = _resolve_allowed_abs_path(params.path)
     if not p.exists():
         raise FileNotFoundError(str(p))
     if not p.is_dir():
         raise NotADirectoryError(str(p))
 
-    return _list_dir_impl(p, max=max, format=format, detailed=detailed)
+    # Defense in depth: still clamp max inside the implementation.
+    return _list_dir_impl(p, max=params.max, format=params.format, detailed=params.detailed)
 
 
 def _list_dir_impl(
@@ -152,10 +172,10 @@ def _list_dir_impl(
 
 
 @mcp.tool
-def read_text_file(path: str) -> str:
+def read_text_file(params: ReadTextFileParams) -> str:
     """Read a UTF-8 text file at an absolute path under an allowed root."""
 
-    p = _resolve_allowed_abs_path(path)
+    p = _resolve_allowed_abs_path(params.path)
     if not p.exists():
         raise FileNotFoundError(str(p))
     if not p.is_file():
